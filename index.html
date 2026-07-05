@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Pokok Pendidikan Kelas 9</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- SheetJS untuk Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    /* Transisi Custom */
+    .fade-in { animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .zoom-in { animation: zoomIn 0.2s ease-out; }
+    @keyframes zoomIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 overflow-hidden h-screen flex flex-col relative">
+
+  <!-- ========================================== -->
+  <!-- MODAL: ALERT NOTIFIKASI                    -->
+  <!-- ========================================== -->
+  <div id="alert-modal" class="fixed inset-0 z-[200] bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full text-center zoom-in">
+      <i data-lucide="alert-circle" class="w-12 h-12 text-amber-500 mx-auto mb-4"></i>
+      <h3 class="text-lg font-bold text-slate-800 mb-2">Perhatian</h3>
+      <p id="alert-message" class="text-sm text-slate-600 mb-6"></p>
+      <button onclick="closeAlert()" class="w-full px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors">
+        Tutup
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: PASSWORD DAPODIK                    -->
+  <!-- ========================================== -->
+  <div id="password-modal" class="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full zoom-in">
+      <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4 text-blue-600">
+        <i data-lucide="lock" class="w-6 h-6"></i>
+      </div>
+      <h3 class="text-xl font-bold text-slate-800 mb-2">Otentikasi Keamanan</h3>
+      <p class="text-sm text-slate-500 mb-5">
+        Masukkan password admin (<span class="font-mono text-xs">dapodik2026</span>) untuk melanjutkan tindakan <span id="password-action-text"></span>.
+      </p>
+      
+      <input
+        type="password"
+        id="password-input"
+        class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none mb-2 text-slate-800"
+        placeholder="Masukkan password..."
+      />
+      <p id="password-error" class="text-red-500 text-xs mb-2 font-medium hidden">Password yang Anda masukkan salah!</p>
+      
+      <div class="flex gap-3 mt-6">
+        <button onclick="closePasswordPrompt()" class="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors">
+          Batal
+        </button>
+        <button onclick="submitPassword()" class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md">
+          Konfirmasi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- OVERLAY: LOADING / SUCCESS                 -->
+  <!-- ========================================== -->
+  <div id="status-overlay" class="absolute inset-0 z-40 bg-white/80 backdrop-blur-sm hidden flex-col items-center justify-center print:hidden rounded-xl">
+    <!-- Loading State -->
+    <div id="loading-state" class="hidden flex-col items-center text-blue-600 px-4 text-center">
+      <i data-lucide="loader-2" class="w-12 h-12 md:w-16 md:h-16 animate-spin mb-4"></i>
+      <h3 class="text-lg md:text-xl font-bold">Membaca File Excel Asli...</h3>
+    </div>
+    <!-- Success State -->
+    <div id="success-state" class="hidden flex-col items-center text-emerald-600 zoom-in px-4 text-center">
+      <i data-lucide="check-circle-2" class="w-12 h-12 md:w-16 md:h-16 mb-4"></i>
+      <h3 class="text-xl md:text-2xl font-bold">Berhasil!</h3>
+      <p class="text-sm md:text-base text-slate-600 mt-2">Data Siswa asli berhasil diekstrak dan diamankan.</p>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- VIEW 1: WELCOME SCREEN                     -->
+  <!-- ========================================== -->
+  <div id="welcome-view" class="min-h-screen bg-slate-900 flex flex-col items-center justify-center relative overflow-hidden px-4">
+    <div class="absolute top-[-20%] left-[-10%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-blue-600/20 rounded-full blur-[80px] md:blur-[100px]"></div>
+    <div class="absolute bottom-[-20%] right-[-10%] w-[250px] md:w-[500px] h-[250px] md:h-[500px] bg-emerald-600/20 rounded-full blur-[80px] md:blur-[100px]"></div>
+    
+    <div class="z-10 text-center max-w-3xl w-full">
+      <img src="https://i.ibb.co.com/JWy6dhzM/LOGO-SMP6-1-removebg-preview.png" alt="Logo Sekolah" class="w-24 h-24 sm:w-32 sm:h-32 md:w-48 md:h-48 mx-auto mb-6 md:mb-8 object-contain drop-shadow-[0_10px_25px_rgba(37,99,235,0.5)]">
+      <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 md:mb-6 tracking-tight leading-tight">
+        Selamat Datang di <br/>
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Sistem Data Pokok</span>
+      </h1>
+      <p class="text-base md:text-lg lg:text-xl text-slate-400 mb-8 md:mb-12 leading-relaxed px-2 md:px-0">
+        Aplikasi profesional untuk mengelola, mengekstrak, dan mencetak rekapitulasi data siswa Kelas 9 secara instan.
+      </p>
+      <button onclick="switchView('main')" class="group relative inline-flex items-center justify-center gap-3 px-6 md:px-8 py-3 md:py-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-full text-base md:text-lg transition-all shadow-[0_0_40px_-10px_rgba(37,99,235,0.7)] hover:shadow-[0_0_60px_-15px_rgba(37,99,235,1)] hover:-translate-y-1 w-full sm:w-auto">
+        Buka Aplikasi
+        <i data-lucide="chevron-right" class="group-hover:translate-x-1 transition-transform w-5 h-5"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- VIEW 2: MAIN LAYOUT                        -->
+  <!-- ========================================== -->
+  <div id="main-view" class="hidden flex-col h-screen w-full relative">
+    
+    <!-- HEADER -->
+    <header class="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 md:px-8 print:hidden z-10 shrink-0 shadow-sm">
+      <div class="flex items-center gap-3">
+        <img src="https://i.ibb.co.com/JWy6dhzM/LOGO-SMP6-1-removebg-preview.png" alt="Logo" class="w-8 h-8 md:w-10 md:h-10 object-contain">
+        <span class="text-base md:text-lg font-bold text-slate-800 truncate">DATA POKOK KELAS 9</span>
+      </div>
+      
+      <button onclick="switchView('welcome')" class="flex items-center gap-2 text-sm md:text-base font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 px-3 md:px-4 py-2 rounded-lg transition-colors">
+        <span class="hidden sm:inline">Keluar</span>
+        <i data-lucide="log-out" class="w-[18px] h-[18px]"></i>
+      </button>
+    </header>
+
+    <!-- PRINT HEADER -->
+    <div class="hidden print:flex flex-col items-center justify-center pt-8 pb-4 border-b-2 border-slate-800 mb-8 w-full text-center">
+      <img src="https://i.ibb.co.com/JWy6dhzM/LOGO-SMP6-1-removebg-preview.png" alt="Logo Sekolah" class="w-24 h-24 mb-4 object-contain">
+      <h1 class="text-2xl font-bold uppercase">REKAPITULASI DATA POKOK KELAS 9</h1>
+      <p class="text-slate-600" id="print-date">Dokumen Cetak Resmi</p>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 overflow-auto p-4 sm:p-6 md:p-8 relative w-full">
+      <div class="max-w-6xl mx-auto w-full space-y-6 md:space-y-8">
+        
+        <!-- UPLOAD AREA -->
+        <div id="drop-zone" class="print:hidden p-4 md:p-5 border border-dashed rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 transition-all duration-200 shadow-sm border-slate-300 bg-white hover:border-blue-400">
+          <div class="flex items-center gap-4 w-full sm:w-auto">
+            <div class="w-10 h-10 md:w-12 md:h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shrink-0">
+              <i data-lucide="upload-cloud" class="w-5 h-5 md:w-6 md:h-6"></i>
+            </div>
+            <div class="text-left flex-1">
+              <h3 class="text-sm md:text-base font-semibold text-slate-700">Unggah File Excel</h3>
+              <p class="text-slate-500 text-[11px] md:text-xs">Mendukung format: .xls, .xlsx, .csv</p>
+            </div>
+          </div>
+          
+          <input type="file" id="file-upload" class="hidden" accept=".xls,.xlsx,.csv" multiple>
+          <button onclick="document.getElementById('file-upload').click()" class="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-blue-600 text-white font-medium rounded-lg shadow-md transition-colors text-sm md:text-base whitespace-nowrap flex items-center justify-center gap-2">
+            <i data-lucide="lock" class="w-4 h-4"></i>
+            Pilih File
+          </button>
+        </div>
+
+        <!-- STUDENTS SECTION -->
+        <div id="students-section" class="hidden fade-in">
+          
+          <div class="mb-4 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 print:hidden">
+            <div>
+              <h2 class="text-xl md:text-2xl font-bold text-slate-800 mb-1">Tabel Pencarian Siswa</h2>
+              <p class="text-xs md:text-sm text-slate-500">Total database: <span id="total-students" class="font-bold text-emerald-600">0 Siswa Tersimpan</span></p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+              <button onclick="handleDownload()" class="flex-1 md:flex-none justify-center items-center flex gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-sm font-semibold transition-colors border border-emerald-200" title="Download Excel Asli">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Excel Asli</span>
+              </button>
+              <button onclick="openPasswordPrompt('delete')" class="flex-1 md:flex-none justify-center items-center flex gap-2 px-4 py-2.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-sm font-semibold transition-colors border border-red-200" title="Hapus Data Siswa">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Hapus Data Siswa</span>
+              </button>
+              <button id="btn-print" onclick="window.print()" disabled class="w-full sm:w-auto md:flex-none justify-center items-center flex gap-2 px-6 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors shadow-md">
+                <i data-lucide="printer" class="w-4 h-4"></i>
+                Print Data Muncul
+              </button>
+            </div>
+          </div>
+
+          <!-- SEARCH AREA -->
+          <div class="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200 shadow-sm w-full mb-4 print:hidden">
+            <div class="relative flex-1">
+              <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-[18px] h-[18px]"></i>
+              <input type="text" id="search-input" placeholder="Ketik nama siswa atau NISN untuk menampilkan data..." class="w-full pl-10 pr-4 py-2.5 bg-transparent border-none text-slate-700 focus:outline-none focus:ring-0 text-sm md:text-base placeholder:text-slate-400">
+            </div>
+          </div>
+
+          <!-- TABLE -->
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden w-full">
+            <div class="overflow-x-auto w-full">
+              <table class="w-full text-left border-collapse min-w-[600px]">
+                <thead>
+                  <tr class="bg-slate-900 text-white text-xs md:text-sm border-b border-slate-200 print:bg-slate-200 print:text-black">
+                    <th class="px-4 md:px-6 py-3 font-semibold w-12 text-center whitespace-nowrap">No</th>
+                    <th class="px-4 md:px-6 py-3 font-semibold whitespace-nowrap">NISN / Identitas</th>
+                    <th class="px-4 md:px-6 py-3 font-semibold whitespace-nowrap">Nama Lengkap Siswa</th>
+                    <th class="px-4 md:px-6 py-3 font-semibold text-center whitespace-nowrap">L/P</th>
+                    <th class="px-4 md:px-6 py-3 font-semibold text-center whitespace-nowrap">Rombel</th>
+                  </tr>
+                </thead>
+                <tbody id="students-tbody" class="divide-y divide-slate-100">
+                  <!-- Data akan di-render di sini oleh JavaScript -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- PAGINATION -->
+            <div id="pagination-controls" class="hidden px-4 md:px-6 py-3 border-t border-slate-200 flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50 print:hidden">
+              <p class="text-xs text-slate-500 text-center sm:text-left">
+                Menampilkan <span id="page-start" class="font-bold text-slate-800">0</span> - <span id="page-end" class="font-bold text-slate-800">0</span> dari <span id="page-total" class="font-bold text-slate-800">0</span>
+              </p>
+              <div class="flex items-center gap-2">
+                <button id="btn-prev" class="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition-colors">
+                  <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                </button>
+                <span id="page-info" class="text-xs font-medium px-3 py-1.5 bg-white border border-slate-200 rounded-lg">Hal 1 / 1</span>
+                <button id="btn-next" class="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition-colors">
+                  <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EMPTY STATE -->
+        <div id="empty-state" class="flex flex-col items-center justify-center py-20 text-center print:hidden">
+          <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+            <i data-lucide="users" class="w-10 h-10 text-slate-300"></i>
+          </div>
+          <h3 class="text-lg font-bold text-slate-700">Belum Ada Database Siswa</h3>
+          <p class="text-sm text-slate-500 mt-1 max-w-md">
+            Silakan unggah file Excel Anda pada kotak di atas (diperlukan password) untuk memasukkan data.
+          </p>
+        </div>
+        
+      </div>
+    </main>
+  </div>
+
+  <!-- SCRIPT LOGIKA APLIKASI -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import { getFirestore, collection, onSnapshot, doc, writeBatch } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    // Inisialisasi Ikon Lucide
+    lucide.createIcons();
+    document.getElementById('print-date').innerText = `Dokumen Cetak Resmi - Dicetak pada ${new Date().toLocaleDateString('id-ID')}`;
+
+    // Konfigurasi Firebase
+    const firebaseConfig = typeof __firebase_config !== 'undefined' 
+      ? JSON.parse(__firebase_config) 
+      : {
+          apiKey: "AIzaSyA31YOr_D_oeEFrgPTokWXvajvV2DCQLtk",
+          authDomain: "dapodik2026-9db93.firebaseapp.com",
+          projectId: "dapodik2026-9db93",
+          storageBucket: "dapodik2026-9db93.firebasestorage.app",
+          messagingSenderId: "771575340932",
+          appId: "1:771575340932:web:8f3596a07c4aab1b2f87d1",
+          measurementId: "G-ZDG437CM05"
+        };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'dapodik-app-default';
+
+    // State Aplikasi
+    let students = [];
+    let files = [];
+    let currentUser = null;
+    let searchQuery = '';
+    let currentPage = 1;
+    const itemsPerPage = 50;
+
+    let pendingAction = null;
+    let pendingPayload = null;
+    let unsubscribeDB = null;
+
+    // Inisialisasi Firebase Auth
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          try {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } catch (tokenError) {
+            console.warn("Token mismatch, beralih ke otentikasi anonim...", tokenError);
+            await signInAnonymously(auth);
+          }
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (error) {
+        console.error("Auth error:", error);
+      }
+    };
+    initAuth();
+
+    onAuthStateChanged(auth, (user) => {
+      currentUser = user;
+      if (user) {
+        if (unsubscribeDB) unsubscribeDB();
+        const studentsRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'students');
+        unsubscribeDB = onSnapshot(studentsRef, (snapshot) => {
+          students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          updateUI();
+        }, (error) => {
+          console.error("Firestore error:", error);
+        });
+      }
+    });
+
+    // Fungsi Render UI (Menggantikan React)
+    function updateUI() {
+      // Toggle Sections based on data
+      if (students.length > 0) {
+        document.getElementById('students-section').classList.remove('hidden');
+        document.getElementById('students-section').classList.add('block');
+        document.getElementById('empty-state').classList.add('hidden');
+        document.getElementById('total-students').innerText = `${students.length} Siswa Tersimpan`;
+      } else {
+        document.getElementById('students-section').classList.add('hidden');
+        document.getElementById('students-section').classList.remove('block');
+        document.getElementById('empty-state').classList.remove('hidden');
+      }
+
+      renderTable();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('students-tbody');
+      const btnPrint = document.getElementById('btn-print');
+      tbody.innerHTML = '';
+
+      if (searchQuery.trim() === '') {
+        // Mode Tersembunyi
+        tbody.innerHTML = `
+          <tr>
+            <td colSpan="5" class="px-4 md:px-6 py-12 text-center text-slate-500">
+              <i data-lucide="search" class="w-12 h-12 mx-auto text-slate-200 mb-3"></i>
+              <p class="text-sm md:text-base font-medium text-slate-400">
+                Data siswa disembunyikan. Silakan ketik nama atau NISN di kotak pencarian.
+              </p>
+            </td>
+          </tr>
+        `;
+        document.getElementById('pagination-controls').classList.add('hidden');
+        document.getElementById('pagination-controls').classList.remove('flex');
+        btnPrint.disabled = true;
+      } else {
+        // Mode Pencarian
+        const filtered = students.filter(student => 
+          String(student.name).toLowerCase().includes(searchQuery.toLowerCase()) ||
+          String(student.nisn).includes(searchQuery)
+        );
+
+        if (filtered.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colSpan="5" class="px-4 md:px-6 py-12 text-center text-slate-500">
+                <i data-lucide="users" class="w-12 h-12 mx-auto text-slate-200 mb-3"></i>
+                <p class="text-sm md:text-base font-medium text-slate-400">
+                  Siswa dengan kata kunci "<span class="text-slate-600 font-bold">${searchQuery}</span>" tidak ditemukan.
+                </p>
+              </td>
+            </tr>
+          `;
+          document.getElementById('pagination-controls').classList.add('hidden');
+          document.getElementById('pagination-controls').classList.remove('flex');
+          btnPrint.disabled = true;
+        } else {
+          btnPrint.disabled = false;
+          const totalPages = Math.ceil(filtered.length / itemsPerPage);
+          const currentStudents = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+          currentStudents.forEach((student, index) => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50 transition-colors text-xs md:text-sm';
+            tr.innerHTML = `
+              <td class="px-4 md:px-6 py-2.5 text-center text-slate-500 font-medium">${(currentPage - 1) * itemsPerPage + index + 1}</td>
+              <td class="px-4 md:px-6 py-2.5 font-mono text-slate-600 whitespace-nowrap">${student.nisn}</td>
+              <td class="px-4 md:px-6 py-2.5 font-semibold text-slate-800 uppercase whitespace-nowrap">${student.name}</td>
+              <td class="px-4 md:px-6 py-2.5 text-center text-slate-700 whitespace-nowrap">${student.gender}</td>
+              <td class="px-4 md:px-6 py-2.5 text-center whitespace-nowrap">
+                <span class="px-2 py-1 bg-slate-100 rounded font-bold text-slate-700 border border-slate-200 print:border-none print:bg-transparent print:p-0">
+                  ${student.rombel}
+                </span>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+
+          // Update Pagination
+          if (totalPages > 1) {
+            document.getElementById('pagination-controls').classList.remove('hidden');
+            document.getElementById('pagination-controls').classList.add('flex');
+            document.getElementById('page-start').innerText = (currentPage - 1) * itemsPerPage + 1;
+            document.getElementById('page-end').innerText = Math.min(currentPage * itemsPerPage, filtered.length);
+            document.getElementById('page-total').innerText = filtered.length;
+            document.getElementById('page-info').innerText = `Hal ${currentPage} / ${totalPages}`;
+            
+            document.getElementById('btn-prev').disabled = currentPage === 1;
+            document.getElementById('btn-next').disabled = currentPage === totalPages;
+            
+            document.getElementById('btn-prev').onclick = () => { currentPage = Math.max(1, currentPage - 1); renderTable(); };
+            document.getElementById('btn-next').onclick = () => { currentPage = Math.min(totalPages, currentPage + 1); renderTable(); };
+          } else {
+            document.getElementById('pagination-controls').classList.add('hidden');
+            document.getElementById('pagination-controls').classList.remove('flex');
+          }
+        }
+      }
+      lucide.createIcons();
+    }
+
+    // Input Pencarian Realtime
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      currentPage = 1;
+      renderTable();
+    });
+
+    // Navigasi View
+    window.switchView = (view) => {
+      if (view === 'main') {
+        document.getElementById('welcome-view').classList.add('hidden');
+        document.getElementById('welcome-view').classList.remove('flex');
+        document.getElementById('main-view').classList.remove('hidden');
+        document.getElementById('main-view').classList.add('flex');
+      } else {
+        document.getElementById('main-view').classList.add('hidden');
+        document.getElementById('main-view').classList.remove('flex');
+        document.getElementById('welcome-view').classList.remove('hidden');
+        document.getElementById('welcome-view').classList.add('flex');
+      }
+    };
+
+    // Modal Alert
+    window.showAlert = (msg) => {
+      document.getElementById('alert-message').innerText = msg;
+      document.getElementById('alert-modal').classList.remove('hidden');
+      document.getElementById('alert-modal').classList.add('flex');
+    };
+    window.closeAlert = () => {
+      document.getElementById('alert-modal').classList.add('hidden');
+      document.getElementById('alert-modal').classList.remove('flex');
+    };
+
+    // Modal Password
+    window.openPasswordPrompt = (action, payload = null) => {
+      pendingAction = action;
+      pendingPayload = payload;
+      document.getElementById('password-action-text').innerText = action === 'upload' ? 'unggah file' : 'hapus data';
+      document.getElementById('password-input').value = '';
+      document.getElementById('password-error').classList.add('hidden');
+      document.getElementById('password-modal').classList.remove('hidden');
+      document.getElementById('password-modal').classList.add('flex');
+      setTimeout(() => document.getElementById('password-input').focus(), 100);
+    };
+    window.closePasswordPrompt = () => {
+      document.getElementById('password-modal').classList.add('hidden');
+      document.getElementById('password-modal').classList.remove('flex');
+      document.getElementById('file-upload').value = '';
+    };
+    window.submitPassword = () => {
+      const val = document.getElementById('password-input').value;
+      if (val === 'dapodik2026') {
+        closePasswordPrompt();
+        if (pendingAction === 'upload') {
+          processFiles(pendingPayload);
+        } else if (pendingAction === 'delete') {
+          executeDeleteData();
+        }
+      } else {
+        document.getElementById('password-error').classList.remove('hidden');
+      }
+    };
+    document.getElementById('password-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitPassword();
+    });
+
+    // Logika Upload File
+    const fileInput = document.getElementById('file-upload');
+    const dropZone = document.getElementById('drop-zone');
+
+    fileInput.addEventListener('change', (e) => {
+      const uploadedFiles = Array.from(e.target.files);
+      if (uploadedFiles.length > 0) openPasswordPrompt('upload', uploadedFiles);
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('border-blue-500', 'bg-blue-50');
+      dropZone.classList.remove('border-slate-300', 'bg-white');
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+      dropZone.classList.add('border-slate-300', 'bg-white');
+    });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+      dropZone.classList.add('border-slate-300', 'bg-white');
+      const droppedFiles = Array.from(e.dataTransfer.files);
+      if (droppedFiles.length > 0) openPasswordPrompt('upload', droppedFiles);
+    });
+
+    async function processFiles(newFiles) {
+      const validFiles = newFiles.filter(file => file.name.endsWith('.xls') || file.name.endsWith('.xlsx') || file.name.endsWith('.csv'));
+      if (validFiles.length === 0) return showAlert('Harap unggah file Excel (.xls, .xlsx, .csv)');
+      if (!window.XLSX) return showAlert('Sistem sedang memuat pemroses Excel, mohon tunggu beberapa detik dan coba unggah lagi.');
+
+      // Tampilkan Loading
+      const overlay = document.getElementById('status-overlay');
+      const loadState = document.getElementById('loading-state');
+      const successState = document.getElementById('success-state');
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+      loadState.classList.remove('hidden');
+      loadState.classList.add('flex');
+      successState.classList.add('hidden');
+
+      let allExtractedStudents = [];
+      let newFileRecords = [];
+
+      try {
+        for (let i = 0; i < validFiles.length; i++) {
+          const file = validFiles[i];
+          const data = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(new Uint8Array(e.target.result));
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(file);
+          });
+
+          const workbook = window.XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonData = window.XLSX.utils.sheet_to_json(worksheet, { defval: "-" });
+
+          if (jsonData.length > 0) {
+            const headers = Object.keys(jsonData[0]);
+            const findKey = (keywords, fallbackIndex) => {
+              const found = headers.find(h => keywords.some(kw => h.toLowerCase().includes(kw)));
+              return found || headers[fallbackIndex] || null;
+            };
+
+            const nisnKey = findKey(['nisn', 'nis', 'induk', 'no'], 0);
+            const nameKey = findKey(['nama', 'name', 'siswa'], 1);
+            const genderKey = findKey(['l/p', 'jk', 'kelamin', 'gender'], 2);
+            const rombelKey = findKey(['kelas', 'rombel', 'tingkat'], 3);
+
+            const fileId = Date.now() + i;
+            const extracted = jsonData.map((row, index) => ({
+              id: `${fileId}-${index}`,
+              nisn: nisnKey ? String(row[nisnKey]) : '-',
+              name: nameKey ? String(row[nameKey]) : 'Siswa ' + (index + 1),
+              gender: genderKey ? String(row[genderKey]) : '-',
+              rombel: rombelKey ? String(row[rombelKey]) : '-',
+              status: 'Aktif'
+            }));
+
+            allExtractedStudents = [...allExtractedStudents, ...extracted];
+            newFileRecords.push({ id: fileId, name: file.name, originalFile: file });
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        overlay.classList.add('hidden');
+        overlay.classList.remove('flex');
+        return showAlert("Gagal membaca format Excel. Pastikan file tidak rusak atau terkunci.");
+      }
+
+      if (allExtractedStudents.length === 0) {
+        overlay.classList.add('hidden');
+        overlay.classList.remove('flex');
+        return showAlert('File Excel kosong atau format tabel tidak terbaca dengan benar.');
+      }
+
+      files = [...newFileRecords, ...files];
+      
+      // Simpan Ke Firebase
+      if (currentUser) {
+        try {
+          const chunk_size = 450;
+          for (let i = 0; i < allExtractedStudents.length; i += chunk_size) {
+            const chunk = allExtractedStudents.slice(i, i + chunk_size);
+            const batch = writeBatch(db);
+            chunk.forEach(student => {
+              const docRef = doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'students', String(student.id));
+              batch.set(docRef, student);
+            });
+            await batch.commit();
+          }
+        } catch (dbError) {
+          console.error("Firestore Save Error:", dbError);
+          showAlert("Peringatan: Data Excel berhasil dibaca secara lokal, namun gagal disimpan permanen ke server.");
+          // Update lokal jika database gagal
+          students = [...allExtractedStudents, ...students];
+          updateUI();
+        }
+      } else {
+        students = [...allExtractedStudents, ...students];
+        updateUI();
+      }
+
+      searchQuery = '';
+      document.getElementById('search-input').value = '';
+      currentPage = 1;
+      
+      // Sukses Animasi
+      loadState.classList.add('hidden');
+      loadState.classList.remove('flex');
+      successState.classList.remove('hidden');
+      successState.classList.add('flex');
+      
+      setTimeout(() => {
+        overlay.classList.add('hidden');
+        overlay.classList.remove('flex');
+      }, 2500);
+    }
+
+    window.handleDownload = () => {
+      if (files.length > 0 && files[0].originalFile) {
+        const fileData = files[0];
+        const url = URL.createObjectURL(fileData.originalFile);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileData.name; 
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url); 
+      } else {
+        showAlert('File asli tidak ditemukan di memori sementara. Silakan unggah file terlebih dahulu pada sesi ini.');
+      }
+    };
+
+    async function executeDeleteData() {
+      if (currentUser) {
+        try {
+          const chunk_size = 450;
+          for (let i = 0; i < students.length; i += chunk_size) {
+            const chunk = students.slice(i, i + chunk_size);
+            const batch = writeBatch(db);
+            chunk.forEach(student => {
+              const docRef = doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'students', String(student.id));
+              batch.delete(docRef);
+            });
+            await batch.commit();
+          }
+        } catch (dbError) {
+          console.error("Firestore Delete Error:", dbError);
+        }
+      }
+      files = [];
+      students = []; 
+      searchQuery = '';
+      document.getElementById('search-input').value = '';
+      currentPage = 1;
+      updateUI();
+    }
+
+  </script>
+</body>
+</html>
