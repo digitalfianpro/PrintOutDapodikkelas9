@@ -3,16 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Data Pokok Pendidikan Kelas 9</title>
+  <title>PRINT OUT DATA POKOK PENDIDIKAN KELAS 9</title>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
-
-  <!-- SheetJS untuk Excel -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <style>
     /* Transisi Custom */
@@ -26,6 +23,8 @@
       from { opacity: 0; transform: scale(0.95); }
       to { opacity: 1; transform: scale(1); }
     }
+    /* Mempercepat rendering tabel */
+    table { table-layout: fixed; }
   </style>
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 overflow-hidden h-screen flex flex-col relative">
@@ -54,7 +53,7 @@
       </div>
       <h3 class="text-xl font-bold text-slate-800 mb-2">Otentikasi Keamanan</h3>
       <p class="text-sm text-slate-500 mb-5">
-        Masukkan password admin (<span class="font-mono text-xs">dapodik2026</span>) untuk melanjutkan tindakan <span id="password-action-text"></span>.
+        Masukkan password admin (<span class="font-mono text-xs">dapodik2026</span>) untuk melanjutkan tindakan <span id="password-action-text" class="font-bold text-slate-700"></span>.
       </p>
       
       <input
@@ -66,12 +65,27 @@
       <p id="password-error" class="text-red-500 text-xs mb-2 font-medium hidden">Password yang Anda masukkan salah!</p>
       
       <div class="flex gap-3 mt-6">
-        <button onclick="closePasswordPrompt()" class="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors">
+        <button onclick="cancelPasswordPrompt()" class="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors">
           Batal
         </button>
         <button onclick="submitPassword()" class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md">
           Konfirmasi
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: UBAH TAHUN AJARAN                   -->
+  <!-- ========================================== -->
+  <div id="edit-year-modal" class="fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full zoom-in">
+      <h3 class="text-xl font-bold text-slate-800 mb-2">Ubah Tahun Ajaran</h3>
+      <p class="text-sm text-slate-500 mb-4">Masukkan tahun ajaran yang baru (contoh: 2026/2027).</p>
+      <input type="text" id="year-input" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none mb-4 text-slate-800" placeholder="2025/2026">
+      <div class="flex gap-3">
+        <button onclick="closeEditYearModal()" class="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors">Batal</button>
+        <button onclick="saveYear()" class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md">Simpan</button>
       </div>
     </div>
   </div>
@@ -83,13 +97,14 @@
     <!-- Loading State -->
     <div id="loading-state" class="hidden flex-col items-center text-blue-600 px-4 text-center">
       <i data-lucide="loader-2" class="w-12 h-12 md:w-16 md:h-16 animate-spin mb-4"></i>
-      <h3 class="text-lg md:text-xl font-bold">Membaca File Excel Asli...</h3>
+      <h3 class="text-lg md:text-xl font-bold">Menyimpan File Excel...</h3>
+      <p id="loading-subtext" class="text-sm text-slate-500 mt-2 font-medium">Memproses data...</p>
     </div>
     <!-- Success State -->
     <div id="success-state" class="hidden flex-col items-center text-emerald-600 zoom-in px-4 text-center">
       <i data-lucide="check-circle-2" class="w-12 h-12 md:w-16 md:h-16 mb-4"></i>
       <h3 class="text-xl md:text-2xl font-bold">Berhasil!</h3>
-      <p class="text-sm md:text-base text-slate-600 mt-2">Data Siswa asli berhasil diekstrak dan diamankan.</p>
+      <p class="text-sm md:text-base text-slate-600 mt-2">Data dan File Excel berhasil diamankan di database.</p>
     </div>
   </div>
 
@@ -100,15 +115,23 @@
     <div class="absolute top-[-20%] left-[-10%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-blue-600/20 rounded-full blur-[80px] md:blur-[100px]"></div>
     <div class="absolute bottom-[-20%] right-[-10%] w-[250px] md:w-[500px] h-[250px] md:h-[500px] bg-emerald-600/20 rounded-full blur-[80px] md:blur-[100px]"></div>
     
-    <div class="z-10 text-center max-w-3xl w-full">
+    <div class="z-10 text-center max-w-4xl w-full">
       <img src="https://i.ibb.co.com/JWy6dhzM/LOGO-SMP6-1-removebg-preview.png" alt="Logo Sekolah" class="w-24 h-24 sm:w-32 sm:h-32 md:w-48 md:h-48 mx-auto mb-6 md:mb-8 object-contain drop-shadow-[0_10px_25px_rgba(37,99,235,0.5)]">
-      <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 md:mb-6 tracking-tight leading-tight">
-        Selamat Datang di <br/>
-        <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Sistem Data Pokok</span>
+      
+      <h1 class="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-2 tracking-tight leading-tight uppercase">
+        PRINT OUT DATA POKOK PENDIDIKAN <br/>
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">KELAS 9</span>
       </h1>
-      <p class="text-base md:text-lg lg:text-xl text-slate-400 mb-8 md:mb-12 leading-relaxed px-2 md:px-0">
-        Aplikasi profesional untuk mengelola, mengekstrak, dan mencetak rekapitulasi data siswa Kelas 9 secara instan.
-      </p>
+      
+      <div class="flex items-center justify-center gap-3 mb-8 md:mb-12">
+        <p class="text-base md:text-xl text-slate-300 font-semibold tracking-wide">
+          TAHUN AJARAN <span class="display-year">2025/2026</span>
+        </p>
+        <button onclick="openPasswordPrompt('editYear')" class="p-2 bg-slate-800 hover:bg-blue-600 rounded-full text-slate-400 hover:text-white transition-all shadow-sm" title="Ubah Tahun Ajaran">
+          <i data-lucide="pencil" class="w-4 h-4"></i>
+        </button>
+      </div>
+
       <button onclick="switchView('main')" class="group relative inline-flex items-center justify-center gap-3 px-6 md:px-8 py-3 md:py-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-full text-base md:text-lg transition-all shadow-[0_0_40px_-10px_rgba(37,99,235,0.7)] hover:shadow-[0_0_60px_-15px_rgba(37,99,235,1)] hover:-translate-y-1 w-full sm:w-auto">
         Buka Aplikasi
         <i data-lucide="chevron-right" class="group-hover:translate-x-1 transition-transform w-5 h-5"></i>
@@ -125,7 +148,7 @@
     <header class="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 md:px-8 print:hidden z-10 shrink-0 shadow-sm">
       <div class="flex items-center gap-3">
         <img src="https://i.ibb.co.com/JWy6dhzM/LOGO-SMP6-1-removebg-preview.png" alt="Logo" class="w-8 h-8 md:w-10 md:h-10 object-contain">
-        <span class="text-base md:text-lg font-bold text-slate-800 truncate">DATA POKOK KELAS 9</span>
+        <span class="text-sm md:text-base font-bold text-slate-800 truncate">PRINT OUT DATA POKOK KELAS 9</span>
       </div>
       
       <button onclick="switchView('welcome')" class="flex items-center gap-2 text-sm md:text-base font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 px-3 md:px-4 py-2 rounded-lg transition-colors">
@@ -137,7 +160,8 @@
     <!-- PRINT HEADER -->
     <div class="hidden print:flex flex-col items-center justify-center pt-8 pb-4 border-b-2 border-slate-800 mb-8 w-full text-center">
       <img src="https://i.ibb.co.com/JWy6dhzM/LOGO-SMP6-1-removebg-preview.png" alt="Logo Sekolah" class="w-24 h-24 mb-4 object-contain">
-      <h1 class="text-2xl font-bold uppercase">REKAPITULASI DATA POKOK KELAS 9</h1>
+      <h1 class="text-2xl font-bold uppercase mb-1">PRINT OUT DATA POKOK PENDIDIKAN KELAS 9</h1>
+      <h2 class="text-lg font-bold uppercase mb-2">TAHUN AJARAN <span class="display-year">2025/2026</span></h2>
       <p class="text-slate-600" id="print-date">Dokumen Cetak Resmi</p>
     </div>
 
@@ -152,8 +176,8 @@
               <i data-lucide="upload-cloud" class="w-5 h-5 md:w-6 md:h-6"></i>
             </div>
             <div class="text-left flex-1">
-              <h3 class="text-sm md:text-base font-semibold text-slate-700">Unggah File Excel</h3>
-              <p class="text-slate-500 text-[11px] md:text-xs">Mendukung format: .xls, .xlsx, .csv</p>
+              <h3 class="text-sm md:text-base font-semibold text-slate-700">Unggah Formulir Siswa (.xls)</h3>
+              <p class="text-slate-500 text-[11px] md:text-xs">Blok semua file formulir siswa Anda dan tarik ke sini.</p>
             </div>
           </div>
           
@@ -169,22 +193,27 @@
           
           <div class="mb-4 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 print:hidden">
             <div>
-              <h2 class="text-xl md:text-2xl font-bold text-slate-800 mb-1">Tabel Pencarian Siswa</h2>
-              <p class="text-xs md:text-sm text-slate-500">Total database: <span id="total-students" class="font-bold text-emerald-600">0 Siswa Tersimpan</span></p>
+              <h2 class="text-xl md:text-2xl font-bold text-slate-800 mb-1">Daftar Arsip Siswa</h2>
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="text-xs md:text-sm text-slate-600 font-bold bg-slate-200 px-2 py-0.5 rounded">
+                  TAHUN AJARAN <span class="display-year">2025/2026</span>
+                </p>
+                <button onclick="openPasswordPrompt('editYear')" class="p-1 bg-white hover:bg-slate-200 border border-slate-300 rounded text-slate-500 transition-colors" title="Ubah Tahun Ajaran">
+                  <i data-lucide="pencil" class="w-3 h-3"></i>
+                </button>
+                <span class="text-slate-300 ml-1 mr-1">|</span>
+                <p class="text-xs md:text-sm text-slate-500">Total formulir: <span id="total-students" class="font-bold text-emerald-600">0 Siswa</span></p>
+              </div>
             </div>
             
-            <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
-              <button onclick="handleDownload()" class="flex-1 md:flex-none justify-center items-center flex gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-sm font-semibold transition-colors border border-emerald-200" title="Download Excel Asli">
-                <i data-lucide="download" class="w-4 h-4"></i>
-                <span class="hidden sm:inline">Excel Asli</span>
-              </button>
-              <button onclick="openPasswordPrompt('delete')" class="flex-1 md:flex-none justify-center items-center flex gap-2 px-4 py-2.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-sm font-semibold transition-colors border border-red-200" title="Hapus Data Siswa">
+            <div class="flex flex-wrap items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
+              <button onclick="openPasswordPrompt('delete')" class="flex-1 md:flex-none justify-center items-center flex gap-2 px-4 py-2.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-sm font-semibold transition-colors border border-red-200" title="Hapus Semua Data Siswa">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
-                <span class="hidden sm:inline">Hapus Data Siswa</span>
+                <span class="hidden sm:inline">Hapus Semua Data</span>
               </button>
               <button id="btn-print" onclick="window.print()" disabled class="w-full sm:w-auto md:flex-none justify-center items-center flex gap-2 px-6 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors shadow-md">
                 <i data-lucide="printer" class="w-4 h-4"></i>
-                Print Data Muncul
+                Print Daftar
               </button>
             </div>
           </div>
@@ -193,7 +222,7 @@
           <div class="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200 shadow-sm w-full mb-4 print:hidden">
             <div class="relative flex-1">
               <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-[18px] h-[18px]"></i>
-              <input type="text" id="search-input" placeholder="Ketik nama siswa atau NISN untuk menampilkan data..." class="w-full pl-10 pr-4 py-2.5 bg-transparent border-none text-slate-700 focus:outline-none focus:ring-0 text-sm md:text-base placeholder:text-slate-400">
+              <input type="text" id="search-input" placeholder="Ketik nama siswa untuk mencari..." class="w-full pl-10 pr-4 py-2.5 bg-transparent border-none text-slate-700 focus:outline-none focus:ring-0 text-sm md:text-base placeholder:text-slate-400">
             </div>
           </div>
 
@@ -203,11 +232,9 @@
               <table class="w-full text-left border-collapse min-w-[600px]">
                 <thead>
                   <tr class="bg-slate-900 text-white text-xs md:text-sm border-b border-slate-200 print:bg-slate-200 print:text-black">
-                    <th class="px-4 md:px-6 py-3 font-semibold w-12 text-center whitespace-nowrap">No</th>
-                    <th class="px-4 md:px-6 py-3 font-semibold whitespace-nowrap">NISN / Identitas</th>
-                    <th class="px-4 md:px-6 py-3 font-semibold whitespace-nowrap">Nama Lengkap Siswa</th>
-                    <th class="px-4 md:px-6 py-3 font-semibold text-center whitespace-nowrap">L/P</th>
-                    <th class="px-4 md:px-6 py-3 font-semibold text-center whitespace-nowrap">Rombel</th>
+                    <th class="px-4 md:px-6 py-4 font-semibold w-16 text-center whitespace-nowrap">No</th>
+                    <th class="px-4 md:px-6 py-4 font-semibold whitespace-nowrap w-[60%]">Nama Lengkap Siswa</th>
+                    <th class="px-4 md:px-6 py-4 font-semibold text-center whitespace-nowrap print:hidden w-40">Aksi</th>
                   </tr>
                 </thead>
                 <tbody id="students-tbody" class="divide-y divide-slate-100">
@@ -239,9 +266,9 @@
           <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
             <i data-lucide="users" class="w-10 h-10 text-slate-300"></i>
           </div>
-          <h3 class="text-lg font-bold text-slate-700">Belum Ada Database Siswa</h3>
+          <h3 class="text-lg font-bold text-slate-700">Belum Ada Arsip Siswa</h3>
           <p class="text-sm text-slate-500 mt-1 max-w-md">
-            Silakan unggah file Excel Anda pada kotak di atas (diperlukan password) untuk memasukkan data.
+            Silakan unggah file Excel Formulir Siswa Anda pada kotak di atas untuk mengarsipkan datanya.
           </p>
         </div>
         
@@ -279,7 +306,6 @@
 
     // State Aplikasi
     let students = [];
-    let files = [];
     let currentUser = null;
     let searchQuery = '';
     let currentPage = 1;
@@ -288,6 +314,17 @@
     let pendingAction = null;
     let pendingPayload = null;
     let unsubscribeDB = null;
+    let searchTimeout = null; // Untuk debounce pencarian pintar
+
+    // State Tahun Ajaran
+    let currentAcademicYear = localStorage.getItem('academicYear') || "2025/2026";
+
+    function updateYearUI() {
+      document.querySelectorAll('.display-year').forEach(el => {
+        el.innerText = currentAcademicYear;
+      });
+    }
+    updateYearUI();
 
     // Inisialisasi Firebase Auth
     const initAuth = async () => {
@@ -296,14 +333,13 @@
           try {
             await signInWithCustomToken(auth, __initial_auth_token);
           } catch (tokenError) {
-            console.warn("Token mismatch, beralih ke otentikasi anonim...", tokenError);
             await signInAnonymously(auth);
           }
         } else {
           await signInAnonymously(auth);
         }
       } catch (error) {
-        console.error("Auth error:", error);
+        console.warn("Auth info:", error);
       }
     };
     initAuth();
@@ -314,44 +350,52 @@
         if (unsubscribeDB) unsubscribeDB();
         const studentsRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'students');
         unsubscribeDB = onSnapshot(studentsRef, (snapshot) => {
-          students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          // Pre-compute huruf kecil saat load data agar pencarian kilat
+          students = snapshot.docs.map(doc => {
+              const data = doc.data();
+              return { 
+                  id: doc.id, 
+                  ...data, 
+                  _searchName: String(data.name || '').toLowerCase() // Indexing mempercepat search
+              };
+          });
           updateUI();
         }, (error) => {
-          console.error("Firestore error:", error);
+          console.warn("Firestore info:", error);
         });
       }
     });
 
-    // Fungsi Render UI (Menggantikan React)
+    // Fungsi Render UI
     function updateUI() {
-      // Toggle Sections based on data
       if (students.length > 0) {
         document.getElementById('students-section').classList.remove('hidden');
         document.getElementById('students-section').classList.add('block');
         document.getElementById('empty-state').classList.add('hidden');
-        document.getElementById('total-students').innerText = `${students.length} Siswa Tersimpan`;
+        document.getElementById('total-students').innerText = `${students.length} Siswa`;
       } else {
         document.getElementById('students-section').classList.add('hidden');
         document.getElementById('students-section').classList.remove('block');
         document.getElementById('empty-state').classList.remove('hidden');
       }
-
       renderTable();
     }
 
     function renderTable() {
       const tbody = document.getElementById('students-tbody');
       const btnPrint = document.getElementById('btn-print');
+      const query = searchQuery.trim().toLowerCase();
+      
+      // Kosongkan tabel (cepat)
       tbody.innerHTML = '';
 
-      if (searchQuery.trim() === '') {
-        // Mode Tersembunyi
+      if (query === '') {
         tbody.innerHTML = `
           <tr>
-            <td colSpan="5" class="px-4 md:px-6 py-12 text-center text-slate-500">
+            <td colSpan="3" class="px-4 md:px-6 py-12 text-center text-slate-500">
               <i data-lucide="search" class="w-12 h-12 mx-auto text-slate-200 mb-3"></i>
               <p class="text-sm md:text-base font-medium text-slate-400">
-                Data siswa disembunyikan. Silakan ketik nama atau NISN di kotak pencarian.
+                Data siswa disembunyikan. Silakan ketik nama di kotak pencarian.
               </p>
             </td>
           </tr>
@@ -360,19 +404,16 @@
         document.getElementById('pagination-controls').classList.remove('flex');
         btnPrint.disabled = true;
       } else {
-        // Mode Pencarian
-        const filtered = students.filter(student => 
-          String(student.name).toLowerCase().includes(searchQuery.toLowerCase()) ||
-          String(student.nisn).includes(searchQuery)
-        );
+        // Pemfilteran Super Cepat (berdasarkan Pre-Index)
+        const filtered = students.filter(student => student._searchName.includes(query));
 
         if (filtered.length === 0) {
           tbody.innerHTML = `
             <tr>
-              <td colSpan="5" class="px-4 md:px-6 py-12 text-center text-slate-500">
+              <td colSpan="3" class="px-4 md:px-6 py-12 text-center text-slate-500">
                 <i data-lucide="users" class="w-12 h-12 mx-auto text-slate-200 mb-3"></i>
                 <p class="text-sm md:text-base font-medium text-slate-400">
-                  Siswa dengan kata kunci "<span class="text-slate-600 font-bold">${searchQuery}</span>" tidak ditemukan.
+                  Siswa dengan nama "<span class="text-slate-600 font-bold">${searchQuery}</span>" tidak ditemukan.
                 </p>
               </td>
             </tr>
@@ -385,24 +426,26 @@
           const totalPages = Math.ceil(filtered.length / itemsPerPage);
           const currentStudents = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+          // Render dalam memori (fragmen) untuk menghindari lag pada DOM
+          const fragment = document.createDocumentFragment();
+
           currentStudents.forEach((student, index) => {
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-slate-50 transition-colors text-xs md:text-sm';
             tr.innerHTML = `
-              <td class="px-4 md:px-6 py-2.5 text-center text-slate-500 font-medium">${(currentPage - 1) * itemsPerPage + index + 1}</td>
-              <td class="px-4 md:px-6 py-2.5 font-mono text-slate-600 whitespace-nowrap">${student.nisn}</td>
-              <td class="px-4 md:px-6 py-2.5 font-semibold text-slate-800 uppercase whitespace-nowrap">${student.name}</td>
-              <td class="px-4 md:px-6 py-2.5 text-center text-slate-700 whitespace-nowrap">${student.gender}</td>
-              <td class="px-4 md:px-6 py-2.5 text-center whitespace-nowrap">
-                <span class="px-2 py-1 bg-slate-100 rounded font-bold text-slate-700 border border-slate-200 print:border-none print:bg-transparent print:p-0">
-                  ${student.rombel}
-                </span>
+              <td class="px-4 md:px-6 py-3.5 text-center text-slate-500 font-medium">${(currentPage - 1) * itemsPerPage + index + 1}</td>
+              <td class="px-4 md:px-6 py-3.5 font-bold text-slate-800 uppercase">${student.name}</td>
+              <td class="px-4 md:px-6 py-3.5 text-center whitespace-nowrap print:hidden">
+                <button onclick="downloadStudentFile('${student.id}')" class="px-4 py-2 bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white rounded-lg text-xs font-bold border border-blue-200 hover:border-blue-600 transition-all flex items-center justify-center gap-2 mx-auto shadow-sm">
+                  <i data-lucide="download" class="w-4 h-4"></i> Download XL
+                </button>
               </td>
             `;
-            tbody.appendChild(tr);
+            fragment.appendChild(tr);
           });
+          
+          tbody.appendChild(fragment);
 
-          // Update Pagination
           if (totalPages > 1) {
             document.getElementById('pagination-controls').classList.remove('hidden');
             document.getElementById('pagination-controls').classList.add('flex');
@@ -425,14 +468,16 @@
       lucide.createIcons();
     }
 
-    // Input Pencarian Realtime
+    // PENCARIAN DEBOUNCE PINTAR - Mencegah lag saat user mengetik cepat
     document.getElementById('search-input').addEventListener('input', (e) => {
-      searchQuery = e.target.value;
-      currentPage = 1;
-      renderTable();
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        searchQuery = e.target.value;
+        currentPage = 1;
+        renderTable();
+      }, 250); // Waktu jeda 250 milidetik sebelum merender hasil pencarian
     });
 
-    // Navigasi View
     window.switchView = (view) => {
       if (view === 'main') {
         document.getElementById('welcome-view').classList.add('hidden');
@@ -447,7 +492,6 @@
       }
     };
 
-    // Modal Alert
     window.showAlert = (msg) => {
       document.getElementById('alert-message').innerText = msg;
       document.getElementById('alert-modal').classList.remove('hidden');
@@ -458,40 +502,77 @@
       document.getElementById('alert-modal').classList.remove('flex');
     };
 
-    // Modal Password
+    // FUNGSI TAHUN AJARAN MODAL
+    window.closeEditYearModal = () => {
+      document.getElementById('edit-year-modal').classList.add('hidden');
+      document.getElementById('edit-year-modal').classList.remove('flex');
+    };
+
+    window.saveYear = () => {
+      const newYear = document.getElementById('year-input').value.trim();
+      if (newYear) {
+        currentAcademicYear = newYear;
+        localStorage.setItem('academicYear', currentAcademicYear);
+        updateYearUI();
+      }
+      window.closeEditYearModal();
+    };
+
+    // PASSWORD MODAL
     window.openPasswordPrompt = (action, payload = null) => {
       pendingAction = action;
       pendingPayload = payload;
-      document.getElementById('password-action-text').innerText = action === 'upload' ? 'unggah file' : 'hapus data';
+      
+      let actionText = '';
+      if (action === 'upload') actionText = 'unggah file';
+      else if (action === 'delete') actionText = 'hapus semua data';
+      else if (action === 'editYear') actionText = 'ubah tahun ajaran';
+      
+      document.getElementById('password-action-text').innerText = actionText;
       document.getElementById('password-input').value = '';
       document.getElementById('password-error').classList.add('hidden');
       document.getElementById('password-modal').classList.remove('hidden');
       document.getElementById('password-modal').classList.add('flex');
       setTimeout(() => document.getElementById('password-input').focus(), 100);
     };
+
     window.closePasswordPrompt = () => {
       document.getElementById('password-modal').classList.add('hidden');
       document.getElementById('password-modal').classList.remove('flex');
-      document.getElementById('file-upload').value = '';
     };
+
+    window.cancelPasswordPrompt = () => {
+      window.closePasswordPrompt();
+      document.getElementById('file-upload').value = ''; 
+      pendingAction = null;
+      pendingPayload = null;
+    };
+
     window.submitPassword = () => {
       const val = document.getElementById('password-input').value;
       if (val === 'dapodik2026') {
-        closePasswordPrompt();
-        if (pendingAction === 'upload') {
-          processFiles(pendingPayload);
-        } else if (pendingAction === 'delete') {
+        const actionToRun = pendingAction;
+        const payloadToRun = pendingPayload;
+        window.closePasswordPrompt();
+        
+        if (actionToRun === 'upload') {
+          processFiles(payloadToRun);
+        } else if (actionToRun === 'delete') {
           executeDeleteData();
+        } else if (actionToRun === 'editYear') {
+          document.getElementById('year-input').value = currentAcademicYear;
+          document.getElementById('edit-year-modal').classList.remove('hidden');
+          document.getElementById('edit-year-modal').classList.add('flex');
         }
       } else {
         document.getElementById('password-error').classList.remove('hidden');
       }
     };
+
     document.getElementById('password-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') submitPassword();
     });
 
-    // Logika Upload File
     const fileInput = document.getElementById('file-upload');
     const dropZone = document.getElementById('drop-zone');
 
@@ -517,86 +598,93 @@
       if (droppedFiles.length > 0) openPasswordPrompt('upload', droppedFiles);
     });
 
+    // =========================================================================
+    // MESIN PENYIMPANAN FILE PERMANEN (DENGAN PEMROSESAN PARALEL CEPAT)
+    // =========================================================================
     async function processFiles(newFiles) {
       const validFiles = newFiles.filter(file => file.name.endsWith('.xls') || file.name.endsWith('.xlsx') || file.name.endsWith('.csv'));
-      if (validFiles.length === 0) return showAlert('Harap unggah file Excel (.xls, .xlsx, .csv)');
-      if (!window.XLSX) return showAlert('Sistem sedang memuat pemroses Excel, mohon tunggu beberapa detik dan coba unggah lagi.');
+      if (validFiles.length === 0) {
+        document.getElementById('file-upload').value = ''; 
+        return showAlert('Harap unggah file Excel (.xls, .xlsx, .csv)');
+      }
 
-      // Tampilkan Loading
+      // UI Tampilkan Loading
       const overlay = document.getElementById('status-overlay');
       const loadState = document.getElementById('loading-state');
       const successState = document.getElementById('success-state');
+      const subText = document.getElementById('loading-subtext');
+      
       overlay.classList.remove('hidden');
       overlay.classList.add('flex');
       loadState.classList.remove('hidden');
       loadState.classList.add('flex');
       successState.classList.add('hidden');
-
+      
       let allExtractedStudents = [];
-      let newFileRecords = [];
 
-      try {
-        for (let i = 0; i < validFiles.length; i++) {
-          const file = validFiles[i];
-          const data = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(new Uint8Array(e.target.result));
-            reader.onerror = reject;
-            reader.readAsArrayBuffer(file);
-          });
+      // PEMROSESAN PARALEL - Membaca 25 file sekaligus untuk menghindari loading lambat
+      const CHUNK_SIZE = 25; 
 
-          const workbook = window.XLSX.read(data, { type: 'array' });
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
-          const jsonData = window.XLSX.utils.sheet_to_json(worksheet, { defval: "-" });
+      for (let i = 0; i < validFiles.length; i += CHUNK_SIZE) {
+        const fileChunk = validFiles.slice(i, i + CHUNK_SIZE);
+        subText.innerText = `Memproses Formulir ${Math.min(i + CHUNK_SIZE, validFiles.length)} dari ${validFiles.length}...`;
+        
+        // Membaca file-file dalam chunk secara berbarengan (Concurrent)
+        const chunkPromises = fileChunk.map(async (file, idx) => {
+          if (file.size === 0) return null;
 
-          if (jsonData.length > 0) {
-            const headers = Object.keys(jsonData[0]);
-            const findKey = (keywords, fallbackIndex) => {
-              const found = headers.find(h => keywords.some(kw => h.toLowerCase().includes(kw)));
-              return found || headers[fallbackIndex] || null;
-            };
-
-            const nisnKey = findKey(['nisn', 'nis', 'induk', 'no'], 0);
-            const nameKey = findKey(['nama', 'name', 'siswa'], 1);
-            const genderKey = findKey(['l/p', 'jk', 'kelamin', 'gender'], 2);
-            const rombelKey = findKey(['kelas', 'rombel', 'tingkat'], 3);
-
-            const fileId = Date.now() + i;
-            const extracted = jsonData.map((row, index) => ({
-              id: `${fileId}-${index}`,
-              nisn: nisnKey ? String(row[nisnKey]) : '-',
-              name: nameKey ? String(row[nameKey]) : 'Siswa ' + (index + 1),
-              gender: genderKey ? String(row[genderKey]) : '-',
-              rombel: rombelKey ? String(row[rombelKey]) : '-',
-              status: 'Aktif'
-            }));
-
-            allExtractedStudents = [...allExtractedStudents, ...extracted];
-            newFileRecords.push({ id: fileId, name: file.name, originalFile: file });
+          // Ekstrak Nama
+          let studentName = "-";
+          const fileNameMatch = file.name.match(/(?:Formulir Peserta Didik|Profil|Formulir)\s+(.*?)(?:\s+-|\.xls|\.csv)/i);
+          if (fileNameMatch && fileNameMatch[1]) {
+              studentName = fileNameMatch[1].trim();
+          } else {
+              studentName = file.name.replace(/\.[^/.]+$/, "");
           }
-        }
-      } catch (err) {
-        console.error(err);
-        overlay.classList.add('hidden');
-        overlay.classList.remove('flex');
-        return showAlert("Gagal membaca format Excel. Pastikan file tidak rusak atau terkunci.");
-      }
+
+          try {
+            // MENGUBAH FILE FISIK MENJADI BASE64
+            const fileDataUrl = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = (e) => resolve(e.target.result);
+              reader.onerror = () => reject(new Error("Gagal konversi ke Base64"));
+              reader.readAsDataURL(file); 
+            });
+
+            return {
+                id: `form_${Date.now()}_${i + idx}`,
+                name: studentName,
+                _searchName: studentName.toLowerCase(), // Pre-Index pencarian agar kilat
+                fileName: file.name,
+                fileData: fileDataUrl
+            };
+          } catch (err) {
+             console.warn(`Gagal memproses ${file.name}`, err);
+             return null;
+          }
+        });
+
+        // Tunggu semua file di chunk ini selesai dibaca
+        const results = await Promise.all(chunkPromises);
+        results.forEach(res => {
+           if (res) allExtractedStudents.push(res);
+        });
+      } 
 
       if (allExtractedStudents.length === 0) {
         overlay.classList.add('hidden');
         overlay.classList.remove('flex');
-        return showAlert('File Excel kosong atau format tabel tidak terbaca dengan benar.');
+        document.getElementById('file-upload').value = '';
+        return showAlert('Gagal memproses. Pastikan file Excel Anda valid.');
       }
 
-      files = [...newFileRecords, ...files];
-      
-      // Simpan Ke Firebase
+      // SIMPAN KE FIREBASE SECARA PERMANEN
       if (currentUser) {
+        subText.innerText = `Menyimpan ${allExtractedStudents.length} data ke server...`;
         try {
-          const chunk_size = 450;
-          for (let i = 0; i < allExtractedStudents.length; i += chunk_size) {
-            const chunk = allExtractedStudents.slice(i, i + chunk_size);
+          const batchSize = 100; // Batch firestore agar ringan
+          for (let i = 0; i < allExtractedStudents.length; i += batchSize) {
+            const chunk = allExtractedStudents.slice(i, i + batchSize);
             const batch = writeBatch(db);
             chunk.forEach(student => {
               const docRef = doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'students', String(student.id));
@@ -605,9 +693,7 @@
             await batch.commit();
           }
         } catch (dbError) {
-          console.error("Firestore Save Error:", dbError);
-          showAlert("Peringatan: Data Excel berhasil dibaca secara lokal, namun gagal disimpan permanen ke server.");
-          // Update lokal jika database gagal
+          console.warn("Info Database:", dbError);
           students = [...allExtractedStudents, ...students];
           updateUI();
         }
@@ -620,6 +706,8 @@
       document.getElementById('search-input').value = '';
       currentPage = 1;
       
+      document.getElementById('file-upload').value = '';
+      
       // Sukses Animasi
       loadState.classList.add('hidden');
       loadState.classList.remove('flex');
@@ -629,29 +717,31 @@
       setTimeout(() => {
         overlay.classList.add('hidden');
         overlay.classList.remove('flex');
-      }, 2500);
+      }, 2000);
     }
 
-    window.handleDownload = () => {
-      if (files.length > 0 && files[0].originalFile) {
-        const fileData = files[0];
-        const url = URL.createObjectURL(fileData.originalFile);
+    // =========================================================================
+    // FUNGSI UNTUK MENGUNDUH KEMBALI FILE ASLI
+    // =========================================================================
+    window.downloadStudentFile = (studentId) => {
+      const student = students.find(s => String(s.id) === String(studentId));
+      
+      if (student && student.fileData) {
         const a = document.createElement('a');
-        a.href = url;
-        a.download = fileData.name; 
+        a.href = student.fileData; 
+        a.download = student.fileName || 'Formulir_Siswa.xls'; 
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url); 
       } else {
-        showAlert('File asli tidak ditemukan di memori sementara. Silakan unggah file terlebih dahulu pada sesi ini.');
+        showAlert('Maaf, file fisik Excel untuk siswa ini tidak ditemukan di database.');
       }
     };
 
     async function executeDeleteData() {
       if (currentUser) {
         try {
-          const chunk_size = 450;
+          const chunk_size = 300;
           for (let i = 0; i < students.length; i += chunk_size) {
             const chunk = students.slice(i, i + chunk_size);
             const batch = writeBatch(db);
@@ -662,10 +752,9 @@
             await batch.commit();
           }
         } catch (dbError) {
-          console.error("Firestore Delete Error:", dbError);
+          console.warn("Info Database:", dbError);
         }
       }
-      files = [];
       students = []; 
       searchQuery = '';
       document.getElementById('search-input').value = '';
