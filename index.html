@@ -232,9 +232,9 @@
               <table class="w-full text-left border-collapse min-w-[300px] md:min-w-[600px]">
                 <thead>
                   <tr class="bg-slate-900 text-white text-[10px] md:text-sm border-b border-slate-200 print:bg-slate-200 print:text-black">
-                    <th class="px-2 md:px-6 py-2.5 md:py-4 font-semibold w-10 md:w-16 text-center whitespace-nowrap">No</th>
-                    <th class="px-2 md:px-6 py-2.5 md:py-4 font-semibold whitespace-nowrap w-[65%]">Nama Lengkap Siswa</th>
-                    <th class="px-2 md:px-6 py-2.5 md:py-4 font-semibold text-center whitespace-nowrap print:hidden w-auto">Aksi</th>
+                    <th class="px-4 md:px-6 py-2.5 md:py-4 font-semibold w-10 md:w-16 text-center whitespace-nowrap">No</th>
+                    <th class="px-4 md:px-6 py-2.5 md:py-4 font-semibold whitespace-nowrap w-[65%]">Nama Lengkap Siswa</th>
+                    <th class="px-4 md:px-6 py-2.5 md:py-4 font-semibold text-center whitespace-nowrap print:hidden w-auto">Aksi</th>
                   </tr>
                 </thead>
                 <tbody id="students-tbody" class="divide-y divide-slate-100">
@@ -286,17 +286,17 @@
     lucide.createIcons();
     document.getElementById('print-date').innerText = `Dokumen Cetak Resmi - Dicetak pada ${new Date().toLocaleDateString('id-ID')}`;
 
-    // Konfigurasi Firebase
+    // Konfigurasi Firebase (BARU)
     const firebaseConfig = typeof __firebase_config !== 'undefined' 
       ? JSON.parse(__firebase_config) 
       : {
-          apiKey: "AIzaSyA31YOr_D_oeEFrgPTokWXvajvV2DCQLtk",
-          authDomain: "dapodik2026-9db93.firebaseapp.com",
-          projectId: "dapodik2026-9db93",
-          storageBucket: "dapodik2026-9db93.firebasestorage.app",
-          messagingSenderId: "771575340932",
-          appId: "1:771575340932:web:8f3596a07c4aab1b2f87d1",
-          measurementId: "G-ZDG437CM05"
+          apiKey: "AIzaSyBRGYPpJbzqBB1VdcuWyYdxXmPZJTQJJvI",
+          authDomain: "datapokok2026.firebaseapp.com",
+          projectId: "datapokok2026",
+          storageBucket: "datapokok2026.firebasestorage.app",
+          messagingSenderId: "545169507099",
+          appId: "1:545169507099:web:3e5abca969ae075881c9be",
+          measurementId: "G-3L5X4V2D81"
         };
 
     const app = initializeApp(firebaseConfig);
@@ -348,7 +348,8 @@
       currentUser = user;
       if (user) {
         if (unsubscribeDB) unsubscribeDB();
-        const studentsRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'students');
+        // PATH PENYIMPANAN PUBLIC GLOBAL
+        const studentsRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'students');
         unsubscribeDB = onSnapshot(studentsRef, (snapshot) => {
           students = snapshot.docs.map(doc => {
               const data = doc.data();
@@ -674,7 +675,8 @@
             const chunk = allExtractedStudents.slice(i, i + batchSize);
             const batch = writeBatch(db);
             chunk.forEach(student => {
-              const docRef = doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'students', String(student.id));
+              // PATH PENYIMPANAN KE PUBLIC GLOBAL
+              const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'students', String(student.id));
               batch.set(docRef, student);
             });
             await batch.commit();
@@ -744,7 +746,8 @@
             const chunk = students.slice(i, i + chunk_size);
             const batch = writeBatch(db);
             chunk.forEach(student => {
-              const docRef = doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'students', String(student.id));
+              // PATH PENGHAPUSAN KE PUBLIC GLOBAL
+              const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'students', String(student.id));
               batch.delete(docRef);
             });
             await batch.commit();
